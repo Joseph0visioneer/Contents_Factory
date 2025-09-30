@@ -1,0 +1,37 @@
+# API Keys and Sensitive Data
+*.env
+config.json
+api_key.txt
+
+# Progress and Data Files
+progress.json
+*.xlsx
+*.json
+!requirements.txt
+!package.json
+
+# Thumbnails
+thumbnails/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
