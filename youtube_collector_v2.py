@@ -51,6 +51,7 @@ class YouTubeShortsCollectorV2:
         self.processed_ids = set()
         self.failed_urls = []
         self.progress_file = "progress.json"
+        self.api_key_file = "api_key.txt"
         self.thumbnail_dir = "thumbnails"
         self.setup_logging()
         self.api_call_delay = 0.5  # Rate limiting: 0.5초 대기
@@ -65,12 +66,56 @@ class YouTubeShortsCollectorV2:
         )
         self.logger = logging.getLogger(__name__)
 
+    def load_api_key(self):
+        """저장된 API 키 불러오기"""
+        if os.path.exists(self.api_key_file):
+            try:
+                with open(self.api_key_file, 'r', encoding='utf-8') as f:
+                    return f.read().strip()
+            except Exception as e:
+                self.logger.error(f"API 키 불러오기 실패: {e}")
+        return None
+
+    def save_api_key(self, api_key):
+        """API 키 저장"""
+        try:
+            with open(self.api_key_file, 'w', encoding='utf-8') as f:
+                f.write(api_key)
+            self.logger.info("API 키 저장 완료")
+        except Exception as e:
+            self.logger.error(f"API 키 저장 실패: {e}")
+
     def setup_api_key(self):
         """API 키 설정"""
         print("\n" + "="*60)
         print("🔑 YouTube Data API 키 설정")
         print("="*60)
 
+        # 저장된 API 키 확인
+        saved_key = self.load_api_key()
+        if saved_key:
+            print(f"\n💾 저장된 API 키를 발견했습니다: {saved_key[:10]}...")
+            use_saved = input("저장된 키를 사용하시겠습니까? (y/n): ").strip().lower()
+
+            if use_saved == 'y':
+                try:
+                    # API 키 테스트
+                    youtube = build('youtube', 'v3', developerKey=saved_key)
+                    test_response = youtube.videos().list(
+                        part='snippet',
+                        id='dQw4w9WgXcQ'
+                    ).execute()
+
+                    self.api_key = saved_key
+                    self.youtube = youtube
+                    print("✅ 저장된 API 키로 설정 완료!")
+                    self.logger.info("저장된 API 키 사용")
+                    return
+                except Exception as e:
+                    print(f"❌ 저장된 API 키 오류: {e}")
+                    print("💡 새로운 API 키를 입력해주세요.")
+
+        # 새 API 키 입력
         while True:
             api_key = input("\n📋 API 키를 입력하세요: ").strip()
 
@@ -93,7 +138,15 @@ class YouTubeShortsCollectorV2:
 
                 self.api_key = api_key
                 self.youtube = youtube
-                print("✅ API 키가 정상적으로 설정되었습니다!")
+
+                # API 키 저장 여부 확인
+                save_choice = input("\n💾 이 API 키를 저장하시겠습니까? (y/n): ").strip().lower()
+                if save_choice == 'y':
+                    self.save_api_key(api_key)
+                    print("✅ API 키가 저장되었습니다!")
+                else:
+                    print("✅ API 키가 설정되었습니다! (저장하지 않음)")
+
                 self.logger.info("API 키 설정 완료")
                 break
 
