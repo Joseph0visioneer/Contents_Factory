@@ -364,13 +364,19 @@ class YouTubeShortsCollectorV2:
             self.logger.error(f"채널 정보 수집 오류 ({channel_id}): {e}")
         return None
 
-    def load_urls_from_csv(self, csv_path):
-        """CSV 파일에서 URL 목록 읽기"""
+    def load_urls_from_csv(self, csv_source):
+        """CSV 파일 또는 URL에서 URL 목록 읽기"""
         try:
-            df = pd.read_csv(csv_path, encoding='utf-8')
+            # URL인지 파일 경로인지 확인
+            if csv_source.startswith('http://') or csv_source.startswith('https://'):
+                print(f"\n🌐 웹에서 CSV 다운로드 중...")
+                df = pd.read_csv(csv_source, encoding='utf-8')
+            else:
+                print(f"\n📂 로컬 CSV 파일 읽는 중...")
+                df = pd.read_csv(csv_source, encoding='utf-8')
 
             # CSV 구조 분석
-            print(f"\n📊 CSV 파일 분석:")
+            print(f"\n📊 CSV 데이터 분석:")
             print(f"   총 행 수: {len(df)}")
             print(f"   컬럼: {list(df.columns)}")
 
@@ -395,8 +401,8 @@ class YouTubeShortsCollectorV2:
             return urls_with_keywords
 
         except Exception as e:
-            print(f"❌ CSV 파일 읽기 오류: {e}")
-            self.logger.error(f"CSV 파일 읽기 오류: {e}")
+            print(f"❌ CSV 읽기 오류: {e}")
+            self.logger.error(f"CSV 읽기 오류: {e}")
             return []
 
     def collect_from_csv(self, csv_path):
@@ -612,24 +618,38 @@ def main():
     # API 키 설정
     collector.setup_api_key()
 
-    # CSV 파일 경로 입력
+    # CSV 파일 경로 또는 URL 입력
     print("\n" + "="*60)
-    print("📁 CSV 파일 선택")
+    print("📁 CSV 데이터 소스 선택")
     print("="*60)
-    print("💡 CSV 파일 형식:")
+    print("💡 CSV 입력 방법:")
+    print("   1. 로컬 파일 경로 (예: ./data.csv)")
+    print("   2. 구글 시트 웹 발행 URL (CSV 형식)")
+    print("\n💡 CSV 파일 형식:")
     print("   - 첫 번째 컬럼: 키워드")
     print("   - 나머지 컬럼: YouTube URL")
+    print("\n💡 구글 시트 웹 발행 방법:")
+    print("   파일 > 공유 > 웹에 게시 > '쉼표로 구분된 값(.csv)' 선택")
 
     while True:
-        csv_path = input("\n📋 CSV 파일 경로를 입력하세요: ").strip()
+        csv_source = input("\n📋 CSV 파일 경로 또는 URL을 입력하세요: ").strip()
 
-        if os.path.exists(csv_path):
+        if not csv_source:
+            print("❌ 입력이 비어있습니다. 다시 입력해주세요.")
+            continue
+
+        # URL이거나 파일이 존재하면 진행
+        if csv_source.startswith('http://') or csv_source.startswith('https://'):
+            print("✅ 웹 URL로 인식되었습니다.")
+            break
+        elif os.path.exists(csv_source):
+            print("✅ 로컬 파일로 인식되었습니다.")
             break
         else:
-            print("❌ 파일을 찾을 수 없습니다. 다시 입력해주세요.")
+            print("❌ 파일을 찾을 수 없습니다. URL이거나 올바른 파일 경로를 입력해주세요.")
 
     # 데이터 수집
-    collector.collect_from_csv(csv_path)
+    collector.collect_from_csv(csv_source)
 
     # 결과 저장
     collector.save_results()
