@@ -370,8 +370,22 @@ class YouTubeShortsCollectorV2:
             # URL인지 파일 경로인지 확인
             if csv_source.startswith('http://') or csv_source.startswith('https://'):
                 print(f"\n🌐 웹에서 CSV 다운로드 중...")
-                # 에러 무시하고 유연하게 읽기
-                df = pd.read_csv(csv_source, encoding='utf-8', on_bad_lines='skip', engine='python')
+
+                # requests로 먼저 다운로드
+                import io
+                response = requests.get(csv_source, timeout=30)
+                response.raise_for_status()
+
+                # HTML인지 확인
+                content = response.text
+                if content.strip().startswith('<!DOCTYPE') or content.strip().startswith('<html'):
+                    print("❌ HTML 페이지가 반환되었습니다. CSV 형식이 아닙니다.")
+                    print("💡 구글 시트 웹 발행 URL이 올바른지 확인해주세요.")
+                    print("💡 또는 파일 > 다운로드 > CSV로 로컬 파일을 다운받아 사용하세요.")
+                    return []
+
+                # CSV 파싱
+                df = pd.read_csv(io.StringIO(content), encoding='utf-8', on_bad_lines='skip', engine='python')
             else:
                 print(f"\n📂 로컬 CSV 파일 읽는 중...")
                 df = pd.read_csv(csv_source, encoding='utf-8', on_bad_lines='skip', engine='python')
