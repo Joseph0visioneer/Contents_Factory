@@ -371,21 +371,33 @@ class YouTubeShortsCollectorV2:
             if csv_source.startswith('http://') or csv_source.startswith('https://'):
                 print(f"\n🌐 웹에서 CSV 다운로드 중...")
 
-                # requests로 먼저 다운로드
-                import io
-                response = requests.get(csv_source, timeout=30)
-                response.raise_for_status()
+                # pandas가 URL을 직접 읽도록 (리다이렉트 자동 처리)
+                try:
+                    df = pd.read_csv(csv_source, on_bad_lines='skip', engine='python')
+                    print("✅ CSV 다운로드 성공!")
+                except Exception as e:
+                    print(f"❌ pandas 직접 읽기 실패: {e}")
+                    print("\n🔄 대체 방법 시도 중...")
 
-                # HTML인지 확인
-                content = response.text
-                if content.strip().startswith('<!DOCTYPE') or content.strip().startswith('<html'):
-                    print("❌ HTML 페이지가 반환되었습니다. CSV 형식이 아닙니다.")
-                    print("💡 구글 시트 웹 발행 URL이 올바른지 확인해주세요.")
-                    print("💡 또는 파일 > 다운로드 > CSV로 로컬 파일을 다운받아 사용하세요.")
-                    return []
+                    # requests로 시도
+                    import io
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                    }
+                    response = requests.get(csv_source, headers=headers, timeout=30, allow_redirects=True)
+                    response.raise_for_status()
 
-                # CSV 파싱
-                df = pd.read_csv(io.StringIO(content), encoding='utf-8', on_bad_lines='skip', engine='python')
+                    # HTML인지 확인
+                    content = response.text
+                    if content.strip().startswith('<!DOCTYPE') or content.strip().startswith('<html'):
+                        print("❌ HTML 페이지가 반환되었습니다.")
+                        print("💡 대안: 파일 > 다운로드 > CSV로 로컬 파일 사용")
+                        self.logger.error(f"HTML 반환됨: {content[:200]}")
+                        return []
+
+                    # CSV 파싱
+                    df = pd.read_csv(io.StringIO(content), on_bad_lines='skip', engine='python')
+                    print("✅ CSV 파싱 완료!")
             else:
                 print(f"\n📂 로컬 CSV 파일 읽는 중...")
                 df = pd.read_csv(csv_source, encoding='utf-8', on_bad_lines='skip', engine='python')
