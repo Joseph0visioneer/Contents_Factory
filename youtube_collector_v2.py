@@ -370,10 +370,11 @@ class YouTubeShortsCollectorV2:
             # URL인지 파일 경로인지 확인
             if csv_source.startswith('http://') or csv_source.startswith('https://'):
                 print(f"\n🌐 웹에서 CSV 다운로드 중...")
-                df = pd.read_csv(csv_source, encoding='utf-8')
+                # 에러 무시하고 유연하게 읽기
+                df = pd.read_csv(csv_source, encoding='utf-8', on_bad_lines='skip', engine='python')
             else:
                 print(f"\n📂 로컬 CSV 파일 읽는 중...")
-                df = pd.read_csv(csv_source, encoding='utf-8')
+                df = pd.read_csv(csv_source, encoding='utf-8', on_bad_lines='skip', engine='python')
 
             # CSV 구조 분석
             print(f"\n📊 CSV 데이터 분석:")
@@ -387,11 +388,16 @@ class YouTubeShortsCollectorV2:
             keyword_col = df.columns[0]
 
             for idx, row in df.iterrows():
-                keyword = row[keyword_col]
+                keyword = str(row[keyword_col])
+
+                # 키워드가 비어있거나 NaN이면 건너뛰기
+                if keyword == 'nan' or not keyword.strip():
+                    continue
+
                 # 각 행의 모든 셀을 검사하여 YouTube URL 찾기
                 for col in df.columns[1:]:
                     cell_value = str(row[col])
-                    if 'youtube.com' in cell_value or 'youtu.be' in cell_value:
+                    if ('youtube.com' in cell_value or 'youtu.be' in cell_value) and cell_value != 'nan':
                         urls_with_keywords.append({
                             'url': cell_value.strip(),
                             'keyword': keyword
